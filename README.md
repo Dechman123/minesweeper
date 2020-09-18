@@ -42,7 +42,7 @@
 
 1. Установить composer, если он не установлен;
 2. Перейти в каталог, в который вы будете клонировать проект;
-3. Выполнить команду `composer require Dechman123/minesweeper`;
+3. Выполнить команду `composer require syusinav/minesweeper`;
 4. Перейти в каталог vendor/bin;
 5. Запустить файл minesweeper.bat.
 
@@ -50,4 +50,4 @@
 
 ## Ссылки
 
-Packagist: <https://packagist.org/packages/Dechman123/minesweeper>
+Packagist: <https://packagist.org/packages/syusinav/minesweeper>
