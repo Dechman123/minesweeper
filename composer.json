@@ -15,6 +15,7 @@
     "autoload": {
         "files": [
             "src/Controller.php",
+            "src/Model.php",
             "src/View.php"
         ]
     }
