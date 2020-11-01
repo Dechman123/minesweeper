@@ -1,63 +1,186 @@
 <?php
 
-namespace Dechman123\minesweeper\Controller;
+namespace syusinav\minesweeper\Controller;
 
-use function Dechman123\minesweeper\View\showGame;
-use function Dechman123\minesweeper\Model\createVars;
-use function Dechman123\minesweeper\Model\createCellsArray;
-use function Dechman123\minesweeper\Model\isBomb;
-use function Dechman123\minesweeper\Model\openArea;
-use function Dechman123\minesweeper\Model\setFlag;
+use function syusinav\minesweeper\View\showGame;
+use function syusinav\minesweeper\View\showGamesInfo;
+use function syusinav\minesweeper\View\showTurnInfo;
+use function syusinav\minesweeper\Model\createVars;
+use function syusinav\minesweeper\Model\createCellsArray;
+use function syusinav\minesweeper\Model\isBomb;
+use function syusinav\minesweeper\Model\openArea;
+use function syusinav\minesweeper\Model\setFlag;
+use function syusinav\minesweeper\Model\insertInfo;
+use function syusinav\minesweeper\Model\getGameId;
+use function syusinav\minesweeper\Model\insertTurnInfo;
+use function syusinav\minesweeper\Model\getVars;
+
+function isCorrect($x, $y)
+{
+    if (is_numeric($x) && is_numeric($y)) {
+        $temp = DIMENSION - 1;
+        if ($x >= 0 && $x <= $temp && $y >= 0 && $y <= $temp) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function updateDatabase($gameResult)
+{
+    $gameDatabase = new \SQLite3('gamedb.db');
+    $gameId = GAME_ID;
+
+    $query = "UPDATE gamesInfo
+        SET gameResult = '$gameResult'
+        WHERE idGame = '$gameId'";
+    $gameDatabase->exec($query);
+}
 
 function gameLoop()
 {
-    global $cellsArray, $lostGame, $openedCellsCount;
+    global $cellsArray, $openedCellsCount;
+    $flag = "-";
     $turnCount = 1;
     while (true) {
         showGame($turnCount);
-        $turnCount++;
         
         $inputString = \cli\prompt(
             "Введите координаты x, y ячейки через "
             . "запятую без пробела.\nЕсли хотите "
             . "установить флаг в ячейку, то введите "
-            . "F (так же через запятую) после ввода координат"
+            . "F или f (так же через запятую) после ввода координат"
         );
-        $playing_field = explode(',', $inputString);
-        if (
-            !isset($playing_field[0]) || !isset($playing_field[1])
-            || preg_match('/^[0-9]{1}$/', $playing_field[0]) == 0
-            || preg_match('/^[0-9]{1}$/', $playing_field[1]) == 0
-        ) {
+
+        $inputArray = explode(',', $inputString);
+
+        $coordX = $inputArray[0];
+        $coordY = $inputArray[1];
+
+        if (!isCorrect($coordX, $coordY)) {
             \cli\line("Неверно введены данные! Попробуйте еще раз");
-            $turnCount--;
+            continue;
+        }
+
+        if (isset($inputArray[2])) {
+            $flag = $inputArray[2];
+            setFlag($coordX, $coordY);
+            insertTurnInfo($turnCount, "Установлен флаг", $coordX, $coordY);
+            $turnCount++;
+            continue;
+        }
+
+        if (isBomb($coordX, $coordY)) {
+            showGame($turnCount);
+            \cli\line("GAME OVER");
+            insertTurnInfo($turnCount, "Игра проиграна", $coordX, $coordY);
+            updateDatabase("Игра проиграна");
+            break;
         } else {
-            if (
-                isset($playing_field[2])
-                && ($playing_field[2] == 'F' || $playing_field[2] == 'f')
-            ) {
-                setFlag($playing_field[0], $playing_field[1]);
-            } else {
-                if (isBomb($playing_field[0], $playing_field[1])) {
-                    showGame($turnCount);
-                    \cli\line("Конец");
-                    break;
-                } else {
-                    openArea($playing_field[0], $playing_field[1]);
-                    if ($openedCellsCount == count($cellsArray) * count($cellsArray[0])) {
-                        showGame($turnCount);
-                        \cli\line("CONGRATULATIONS! YOU WON");
-                        break;
-                    }
-                }
+            openArea($coordX, $coordY);
+            insertTurnInfo($turnCount, "Открыта область", $coordX, $coordY);
+            if ($openedCellsCount == count($cellsArray) * count($cellsArray[0])) {
+                showGame($turnCount);
+                \cli\line("CONGRATULATIONS! YOU WON");
+                insertTurnInfo($turnCount, "Игра выиграна", $coordX, $coordY);
+                updateDatabase("Игра выиграна");
+                break;
             }
         }
+        $turnCount++;
+    }
+}
+
+function newGame()
+{
+    createVars();
+    insertInfo();
+    getGameId();
+    createCellsArray("new", GAME_ID);
+    gameLoop();
+    exit();
+}
+
+function listGames()
+{
+    if (!file_exists("gamedb.db")) {
+        \cli\line("База данных не обнаружена!");
+        return;
+    }
+    $gameDatabase = new \SQLite3('gamedb.db');
+    $result = $gameDatabase->query("SELECT * FROM gamesInfo");
+    
+    while ($row = $result->fetchArray()) {
+        showGamesInfo($row);
+        $query = "SELECT 
+            gameTurn, 
+            coordinates, 
+            result 
+            FROM concreteGame 
+            WHERE idGame='$row[0]'
+            ";
+        $gameTurns = $gameDatabase->query($query);
+        while ($gameTurnsRow = $gameTurns->fetchArray()) {
+            showTurnInfo($gameTurnsRow);
+        }
+    }
+}
+
+function idExists($id)
+{
+    $gameDatabase = new \SQLite3('gamedb.db');
+    $query = "SELECT EXISTS(SELECT 1 FROM gamesInfo WHERE idGame='$id')";
+    $flag = $gameDatabase->querySingle($query);
+    if ($flag == 0) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+function replayGame($id)
+{
+    if (!file_exists("gamedb.db")) {
+        \cli\line("База данных не обнаружена!");
+        return;
+    }
+
+    if (!idExists($id)) {
+        \cli\line("Выбранной игры не существует");
+        return;
+    } else {
+        getVars($id);
+        insertInfo();
+        getGameId();
+        createCellsArray("replay", $id);
+        gameLoop();
+        exit();
     }
 }
 
 function startGame()
 {
-    createVars();
-    createCellsArray();
-    gameLoop();
+    while (true) {
+        $command = \cli\prompt(
+            "Введите один из доступных ключей:\n"
+            . "--new - новая игра\n"
+            . "--list - вывод списка всех игр\n"
+            . "--replay id - повтор игры с идентивикатором id\n"
+            . "--exit - выход"
+        );
+        if ($command == "--new") {
+            newGame();
+        } elseif ($command == "--list") {
+            listGames();
+        } elseif (preg_match('/(^--replay [0-9]+$)/', $command) != 0) {
+            $temp = explode(' ', $command);
+            $id = $temp[1];
+            unset($temp);
+            replayGame($id);
+        } elseif ($command == "--exit") {
+            exit();
+        } else {
+            \cli\line("Неверный ключ");
+        }
+    }
 }

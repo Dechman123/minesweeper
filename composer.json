@@ -1,8 +1,9 @@
 {
     "name": "syusinav/minesweeper",
+    "description": "This is minesweeper game",
     "authors": [
         {
-            "name": "Alex Syusin",
+            "name": "syusinav",
             "email": "syusin.al@yandex.ru"
         }
     ],
@@ -10,7 +11,7 @@
         "wp-cli/php-cli-tools": "^0.11.11"
     },
     "bin": [
-        "bin/minesweeper.php"
+        "bin/minesweeper"
     ],
     "autoload": {
         "files": [
