@@ -10,5 +10,5 @@
 
     use function syusinav\minesweeper\Controller\startGame;
 
-    startGame();
+    startGame($argv);
 ?>

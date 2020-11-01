@@ -38,4 +38,4 @@
 Перейти в каталог vendor/bin;
 Запустить файл minesweeper.bat.
 Ссылки
-Packagist: <https://packagist.org/packages/syusinav/minesweeper>
+Packagist: https://packagist.org/packages/syusinav/minesweeper
